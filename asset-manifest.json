@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/calf-tracker-new/static/css/main.c1c7e42b.css",
-    "main.js": "/calf-tracker-new/static/js/main.bd2fccc6.js",
+    "main.js": "/calf-tracker-new/static/js/main.a1e518f4.js",
     "static/js/453.f57f23b7.chunk.js": "/calf-tracker-new/static/js/453.f57f23b7.chunk.js",
     "index.html": "/calf-tracker-new/index.html",
     "main.c1c7e42b.css.map": "/calf-tracker-new/static/css/main.c1c7e42b.css.map",
-    "main.bd2fccc6.js.map": "/calf-tracker-new/static/js/main.bd2fccc6.js.map",
+    "main.a1e518f4.js.map": "/calf-tracker-new/static/js/main.a1e518f4.js.map",
     "453.f57f23b7.chunk.js.map": "/calf-tracker-new/static/js/453.f57f23b7.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.c1c7e42b.css",
-    "static/js/main.bd2fccc6.js"
+    "static/js/main.a1e518f4.js"
   ]
 }
