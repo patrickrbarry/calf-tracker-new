@@ -2,7 +2,7 @@
   "name": "calf-tracker-new",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://patrickrbarry.github.io/calf-tracker-new",
+  "homepage": "https://patrickrbarry.github.io/calf-tracker-new/",
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
@@ -18,7 +18,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
+    "predeploy": "PUBLIC_URL=/calf-tracker-new npm run build",
     "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
