@@ -18,17 +18,132 @@ const CalfStretchingTracker = () => {
     { id: 3, time: '17:00', enabled: true, label: 'Evening' },
     { id: 4, time: '21:00', enabled: false, label: 'Night' }
   ]);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
   const intervalRef = useRef(null);
 
+  // Load data from localStorage on component mount
   useEffect(() => {
-    const today = new Date().toDateString();
-    const sampleSessions = [
-      { date: today, completed: currentSession - 1, target: 4 }
-    ];
-    setSessions(sampleSessions);
-  }, [currentSession]);
+    loadStoredData();
+    checkNotificationPermission();
+    scheduleNotifications();
+  }, []);
 
+  // Save data whenever sessions or reminders change
+  useEffect(() => {
+    saveToStorage('sessions', sessions);
+  }, [sessions]);
+
+  useEffect(() => {
+    saveToStorage('reminders', reminders);
+    scheduleNotifications();
+  }, [reminders]);
+
+  // Load stored data
+  const loadStoredData = () => {
+    try {
+      // Load sessions
+      const storedSessions = getFromStorage('sessions');
+      if (storedSessions) {
+        setSessions(storedSessions);
+        
+        // Calculate today's current session
+        const today = new Date().toDateString();
+        const todaySession = storedSessions.find(s => s.date === today);
+        if (todaySession) {
+          setCurrentSession(todaySession.completed + 1);
+        }
+      } else {
+        // Initialize with today's data
+        const today = new Date().toDateString();
+        const initialSessions = [{ date: today, completed: 0, target: 4 }];
+        setSessions(initialSessions);
+      }
+
+      // Load reminders
+      const storedReminders = getFromStorage('reminders');
+      if (storedReminders) {
+        setReminders(storedReminders);
+      }
+    } catch (error) {
+      console.error('Error loading stored data:', error);
+    }
+  };
+
+  // Storage helpers
+  const saveToStorage = (key, data) => {
+    try {
+      localStorage.setItem(`calfTracker_${key}`, JSON.stringify(data));
+    } catch (error) {
+      console.error('Error saving to storage:', error);
+    }
+  };
+
+  const getFromStorage = (key) => {
+    try {
+      const item = localStorage.getItem(`calfTracker_${key}`);
+      return item ? JSON.parse(item) : null;
+    } catch (error) {
+      console.error('Error reading from storage:', error);
+      return null;
+    }
+  };
+
+  // Notification functions
+  const checkNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationsEnabled(permission === 'granted');
+    }
+  };
+
+  const scheduleNotifications = () => {
+    if (!notificationsEnabled) return;
+    
+    // Clear existing timeouts
+    const existingTimeouts = getFromStorage('notificationTimeouts') || [];
+    existingTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    
+    const newTimeouts = [];
+    
+    reminders.forEach(reminder => {
+      if (reminder.enabled) {
+        const [hours, minutes] = reminder.time.split(':');
+        const now = new Date();
+        const scheduledTime = new Date();
+        scheduledTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        // If the time has passed today, schedule for tomorrow
+        if (scheduledTime <= now) {
+          scheduledTime.setDate(scheduledTime.getDate() + 1);
+        }
+        
+        const timeUntilNotification = scheduledTime.getTime() - now.getTime();
+        
+        const timeoutId = setTimeout(() => {
+          showNotification(`Time for your ${reminder.label.toLowerCase()} calf stretching session!`);
+          // Reschedule for next day
+          scheduleNotifications();
+        }, timeUntilNotification);
+        
+        newTimeouts.push(timeoutId);
+      }
+    });
+    
+    saveToStorage('notificationTimeouts', newTimeouts);
+  };
+
+  const showNotification = (message) => {
+    if (notificationsEnabled && 'Notification' in window) {
+      new Notification('Calf Stretching Reminder', {
+        body: message,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico'
+      });
+    }
+  };
+
+  // Timer logic
   useEffect(() => {
     const handleTimerComplete = () => {
       if (currentLeg === 'left') {
@@ -111,10 +226,40 @@ const CalfStretchingTracker = () => {
   };
 
   const getStreak = () => {
-    return sessions.length;
+    // Calculate consecutive days with completed sessions
+    const sortedSessions = sessions
+      .filter(s => s.completed >= s.target)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (sortedSessions.length === 0) return 0;
+    
+    let streak = 0;
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
+    for (const session of sortedSessions) {
+      const sessionDate = new Date(session.date);
+      sessionDate.setHours(0, 0, 0, 0);
+      
+      const daysDiff = (currentDate - sessionDate) / (1000 * 60 * 60 * 24);
+      
+      if (daysDiff === streak) {
+        streak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    
+    return streak;
   };
 
-  const toggleReminder = (id) => {
+  const toggleReminder = async (id) => {
+    // Request notification permission if enabling reminders
+    if (!notificationsEnabled) {
+      await checkNotificationPermission();
+    }
+    
     setReminders(prev => prev.map(reminder => 
       reminder.id === id 
         ? { ...reminder, enabled: !reminder.enabled }
@@ -128,6 +273,15 @@ const CalfStretchingTracker = () => {
         ? { ...reminder, time: newTime }
         : reminder
     ));
+  };
+
+  const clearAllData = () => {
+    if (window.confirm('Are you sure you want to clear all session history? This cannot be undone.')) {
+      localStorage.removeItem('calfTracker_sessions');
+      localStorage.removeItem('calfTracker_reminders');
+      setSessions([{ date: new Date().toDateString(), completed: 0, target: 4 }]);
+      setCurrentSession(1);
+    }
   };
 
   if (showHistory) {
@@ -155,7 +309,7 @@ const CalfStretchingTracker = () => {
               
               <div className="history-section">
                 <h3 className="section-title">Recent Sessions</h3>
-                {sessions.map((session, index) => (
+                {sessions.slice().reverse().map((session, index) => (
                   <div key={index} className="session-row">
                     <span className="session-date">{session.date}</span>
                     <span className={`session-progress ${session.completed >= session.target ? 'complete' : 'incomplete'}`}>
@@ -163,6 +317,10 @@ const CalfStretchingTracker = () => {
                     </span>
                   </div>
                 ))}
+                
+                <button onClick={clearAllData} className="secondary-button" style={{marginTop: '1rem'}}>
+                  Clear All History
+                </button>
               </div>
             </div>
           </div>
@@ -187,6 +345,15 @@ const CalfStretchingTracker = () => {
               <p className="reminders-description">
                 Set up to 4 daily reminders for your stretching sessions
               </p>
+              
+              {!notificationsEnabled && (
+                <div className="notification-warning">
+                  <p>⚠️ Notifications are not enabled. Please allow notifications in your browser settings for reminders to work.</p>
+                  <button onClick={checkNotificationPermission} className="primary-button">
+                    Enable Notifications
+                  </button>
+                </div>
+              )}
               
               {reminders.map((reminder) => (
                 <div key={reminder.id} className="reminder-card">
@@ -219,9 +386,10 @@ const CalfStretchingTracker = () => {
               <div className="notification-tip">
                 <div className="tip-header">
                   <Bell size={16} />
-                  <span>Notification Tip</span>
+                  <span>Notification Status</span>
                 </div>
-                <p>Make sure to allow notifications in your device settings for the best reminder experience.</p>
+                <p>Notifications are {notificationsEnabled ? 'enabled' : 'disabled'}. 
+                   {!notificationsEnabled && ' Please enable them in your browser/device settings.'}</p>
               </div>
             </div>
           </div>
