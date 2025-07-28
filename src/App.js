@@ -22,22 +22,21 @@ const CalfStretchingTracker = () => {
   
   const intervalRef = useRef(null);
 
-  // Load data from localStorage on component mount
   useEffect(() => {
-    loadStoredData();
-    checkNotificationPermission();
-    scheduleNotifications();
-  }, []);
+  loadStoredData();
+  checkNotificationPermission();
+  scheduleNotifications();
+}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save data whenever sessions or reminders change
   useEffect(() => {
     saveToStorage('sessions', sessions);
   }, [sessions]);
 
-  useEffect(() => {
-    saveToStorage('reminders', reminders);
-    scheduleNotifications();
-  }, [reminders]);
+useEffect(() => {
+  saveToStorage('reminders', reminders);
+  scheduleNotifications();
+}, [reminders]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load stored data
   const loadStoredData = () => {
